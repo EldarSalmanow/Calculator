@@ -1,0 +1,7 @@
+[requires]
+asmjit/cci.20220210
+GSCrossPlatform/1.0
+taywee-args/6.3.0
+
+[generators]
+cmake
