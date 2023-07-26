@@ -1,3 +1,8 @@
+#include <vector>
+#include <map>
+#include <any>
+#include <iostream>
+
 #include <args.hxx>
 
 #define ASMJIT_STATIC
@@ -6,12 +11,7 @@
 
 #include <GSCrossPlatform/CrossPlatform.h>
 
-#include <vector>
-#include <map>
-#include <any>
-#include <iostream>
-
-[[noreturn]] Void Error(UString message) {
+[[noreturn]] Void Error(ConstLRef<UString> message) {
     std::cerr << message << std::endl;
 
     std::exit(1);
@@ -36,17 +36,22 @@ enum class TokenType {
 class Token {
 public:
 
-    Token(TokenType type, UString value)
-            : _type(type), _value(std::move(value)) {}
+    Token(TokenType type,
+          UString value)
+            : _type(type),
+              _value(std::move(value)) {}
 
 public:
 
-    static Token Create(TokenType type, UString value) {
-        return Token(type, std::move(value));
+    static Token Create(TokenType type,
+                        UString value) {
+        return Token(type,
+                     std::move(value));
     }
 
     static Token Create(TokenType type) {
-        return Token::Create(type, UString());
+        return Token::Create(type,
+                             UString());
     }
 
     static Token Create() {
@@ -74,7 +79,8 @@ class Lexer {
 public:
 
     explicit Lexer(UString text)
-            : _text(std::move(text)), _textIterator(_text.begin()) {}
+            : _text(std::move(text)),
+              _textIterator(_text.begin()) {}
 
 public:
 
@@ -144,12 +150,19 @@ private:
 
             NextSymbol();
 
-            return Token::Create(tokenType, UString({symbol}));
+            return Token::Create(tokenType,
+                                 UString({symbol}));
         } else if (IsEnd()) {
             return Token::Create(TokenType::EndOfFile);
         }
 
-        Error("Error: Unknown symbol '"_us + CurrentSymbol() + "'!"_us);
+        UStringStream stringStream;
+
+        stringStream << "Error: Unknown symbol '"_us
+                     << UString({CurrentSymbol()})
+                     << "'!"_us;
+
+        Error(stringStream.String());
 
         NextSymbol();
 
@@ -244,18 +257,23 @@ class ValueExpression : public Expression {
 public:
 
     template<typename T>
-    ValueExpression(T value, UString type)
-            : _value(std::move(value)), _type(std::move(type)) {}
+    ValueExpression(T value,
+                    UString type)
+            : _value(std::move(value)),
+              _type(std::move(type)) {}
 
 public:
 
     template<typename T>
-    static std::shared_ptr<ValueExpression> Create(T value, UString type) {
-        return std::make_shared<ValueExpression>(std::move(value), std::move(type));
+    static std::shared_ptr<ValueExpression> Create(T value,
+                                                   UString type) {
+        return std::make_shared<ValueExpression>(std::move(value),
+                                                 std::move(type));
     }
 
     static std::shared_ptr<ValueExpression> Create(I64 value) {
-        return ValueExpression::Create(value, "I64");
+        return ValueExpression::Create(value,
+                                       "I64");
     }
 
 public:
@@ -293,13 +311,17 @@ enum class UnaryOperation {
 class UnaryExpression : public Expression {
 public:
 
-    UnaryExpression(UnaryOperation operation, ExpressionPtr expression)
-            : _operation(operation), _expression(std::move(expression)) {}
+    UnaryExpression(UnaryOperation operation,
+                    ExpressionPtr expression)
+            : _operation(operation),
+              _expression(std::move(expression)) {}
 
 public:
 
-    static std::shared_ptr<UnaryExpression> Create(UnaryOperation operation, ExpressionPtr expression) {
-        return std::make_shared<UnaryExpression>(operation, std::move(expression));
+    static std::shared_ptr<UnaryExpression> Create(UnaryOperation operation,
+                                                   ExpressionPtr expression) {
+        return std::make_shared<UnaryExpression>(operation,
+                                                 std::move(expression));
     }
 
 public:
@@ -335,13 +357,21 @@ enum class BinaryOperation {
 class BinaryExpression : public Expression {
 public:
 
-    BinaryExpression(BinaryOperation operation, ExpressionPtr firstExpression, ExpressionPtr secondExpression)
-            : _operation(operation), _firstExpression(std::move(firstExpression)), _secondExpression(std::move(secondExpression)) {}
+    BinaryExpression(BinaryOperation operation,
+                     ExpressionPtr firstExpression,
+                     ExpressionPtr secondExpression)
+            : _operation(operation),
+              _firstExpression(std::move(firstExpression)),
+              _secondExpression(std::move(secondExpression)) {}
 
 public:
 
-    static std::shared_ptr<BinaryExpression> Create(BinaryOperation operation, ExpressionPtr firstExpression, ExpressionPtr secondExpression) {
-        return std::make_shared<BinaryExpression>(operation, std::move(firstExpression), std::move(secondExpression));
+    static std::shared_ptr<BinaryExpression> Create(BinaryOperation operation,
+                                                    ExpressionPtr firstExpression,
+                                                    ExpressionPtr secondExpression) {
+        return std::make_shared<BinaryExpression>(operation,
+                                                  std::move(firstExpression),
+                                                  std::move(secondExpression));
     }
 
 public:
@@ -382,7 +412,8 @@ class Parser {
 public:
 
     explicit Parser(std::vector<Token> tokens)
-            : _tokens(std::move(tokens)), _tokensIterator(_tokens.begin()) {}
+            : _tokens(std::move(tokens)),
+              _tokensIterator(_tokens.begin()) {}
 
 public:
 
@@ -440,7 +471,13 @@ private:
 
                     break;
                 default:
-                    Error("Error: Unknown binary operator '"_us + CurrentTokenValue() + "'!"_us);
+                    UStringStream stringStream;
+
+                    stringStream << "Error: Unknown binary operator '"_us
+                                 << UString({CurrentTokenValue()})
+                                 << "'!"_us;
+
+                    Error(stringStream.String());
 
                     return nullptr;
             }
@@ -452,10 +489,13 @@ private:
             auto nextTokenPrecedence = CurrentTokenPrecedence();
 
             if (currentTokenPrecedence < nextTokenPrecedence) {
-                secondExpression = ParseBinaryExpression(currentTokenPrecedence + 1, secondExpression);
+                secondExpression = ParseBinaryExpression(currentTokenPrecedence + 1,
+                                                         secondExpression);
             }
 
-            expression = BinaryExpression::Create(binaryOperator, expression, secondExpression);
+            expression = BinaryExpression::Create(binaryOperator,
+                                                  expression,
+                                                  secondExpression);
         }
     }
 
@@ -465,7 +505,8 @@ private:
 
             auto expression =  ParseValueExpression();
 
-            return UnaryExpression::Create(UnaryOperation::Minus, expression);
+            return UnaryExpression::Create(UnaryOperation::Minus,
+                                           expression);
         }
 
         return ParseValueExpression();
@@ -591,7 +632,13 @@ public:
             return valueExpression->GetValueWithType<I64>();
         }
 
-        Error("Error: Unknown '"_us + valueExpression->GetType() + "' value type!"_us);
+        UStringStream stringStream;
+
+        stringStream << "Error: Unknown '"_us
+                     << valueExpression->GetType()
+                     << "' value type!"_us;
+
+        Error(stringStream.String());
     }
 
     I64 VisitUnaryExpression(ConstLRef<std::shared_ptr<UnaryExpression>> unaryExpression) {
@@ -637,8 +684,12 @@ public:
 class JitCompilerErrorHandler : public asmjit::ErrorHandler {
 public:
 
-    void handleError(asmjit::Error err, const char *message, asmjit::BaseEmitter *origin) override {
-        std::cout << "AsmJit error message >> " << message << std::endl;
+    void handleError(asmjit::Error err,
+                     const char *message,
+                     asmjit::BaseEmitter *origin) override {
+        std::cout << "AsmJit error message >> "
+                  << message
+                  << std::endl;
     }
 };
 
@@ -651,21 +702,18 @@ public:
 
         _codeHolder->init(_runtime->environment());
 
-        _logger = new asmjit::StringLogger();
         _errorHandler = new JitCompilerErrorHandler();
 
-        _codeHolder->setLogger(_logger);
         _codeHolder->setErrorHandler(_errorHandler);
 
-        _emitter = new asmjit::x86::Compiler(_codeHolder);
+        _assembler = new asmjit::x86::Assembler(_codeHolder);
     }
 
 public:
 
     ~JitCompiler() {
         delete _errorHandler;
-        delete _logger;
-        delete _emitter;
+        delete _assembler;
         delete _codeHolder;
         delete _runtime;
     }
@@ -709,78 +757,79 @@ public:
 
     Void VisitValueExpression(ConstLRef<std::shared_ptr<ValueExpression>> valueExpression) {
         if (valueExpression->GetType() == "I64") {
-            _emitter->push(valueExpression->GetValueWithType<I64>());
+            _assembler->push(valueExpression->GetValueWithType<I64>());
 
             return;
         }
 
-        Error("Error: Unknown '"_us + valueExpression->GetType() + "' value type!"_us);
+        UStringStream stringStream;
+
+        stringStream << "Error: Unknown '"_us
+                     << valueExpression->GetType()
+                     << "' value type!"_us;
+
+        Error(stringStream.String());
     }
 
     Void VisitUnaryExpression(ConstLRef<std::shared_ptr<UnaryExpression>> unaryExpression) {
         VisitExpression(unaryExpression->GetExpression());
 
-        _emitter->pop(asmjit::x86::rax);
+        _assembler->pop(asmjit::x86::rax);
 
         switch (unaryExpression->GetOperation()) {
             case UnaryOperation::Minus:
-                _emitter->neg(asmjit::x86::rax);
+                _assembler->neg(asmjit::x86::rax);
 
                 break;
             default:
                 Error("Error: Unknown unary operation type!");
         }
 
-        _emitter->push(asmjit::x86::rax);
+        _assembler->push(asmjit::x86::rax);
     }
 
     Void VisitBinaryExpression(ConstLRef<std::shared_ptr<BinaryExpression>> binaryExpression) {
         VisitExpression(binaryExpression->GetFirstExpression());
         VisitExpression(binaryExpression->GetSecondExpression());
 
-        _emitter->pop(asmjit::x86::rbx);
-        _emitter->pop(asmjit::x86::rax);
+        _assembler->pop(asmjit::x86::rbx);
+        _assembler->pop(asmjit::x86::rax);
 
         switch (binaryExpression->GetOperation()) {
             case BinaryOperation::Plus:
-                _emitter->add(asmjit::x86::rax, asmjit::x86::rbx);
+                _assembler->add(asmjit::x86::rax, asmjit::x86::rbx);
 
                 break;
             case BinaryOperation::Minus:
-                _emitter->sub(asmjit::x86::rax, asmjit::x86::rbx);
+                _assembler->sub(asmjit::x86::rax, asmjit::x86::rbx);
 
                 break;
             case BinaryOperation::Star:
-                _emitter->imul(asmjit::x86::rax, asmjit::x86::rax, asmjit::x86::rbx);
+                _assembler->imul(asmjit::x86::rbx);
 
                 break;
             case BinaryOperation::Slash:
-                _emitter->idiv(asmjit::x86::rax, asmjit::x86::rax, asmjit::x86::rbx);
+                _assembler->cdq();
+                _assembler->idiv(asmjit::x86::rbx);
 
                 break;
             default:
                 Error("Error: Unknown binary operation type!");
         }
 
-        _emitter->push(asmjit::x86::rax);
+        _assembler->push(asmjit::x86::rax);
     }
 
 public:
 
     I64 Run(ConstLRef<NodePtr> node) override {
-        _emitter->addFunc(asmjit::FuncSignatureT<I64>());
-
         Visit(node);
 
-        _emitter->pop(asmjit::x86::rax);
+        _assembler->pop(asmjit::x86::rax);
 
-        _emitter->ret(asmjit::x86::rax);
+        _assembler->ret();
 
-        _emitter->endFunc();
-
-        _emitter->finalize();
-
-        std::cout << reinterpret_cast<asmjit::StringLogger *>(_logger)->data() << std::endl;
+        _assembler->finalize();
 
         I64 (*function) ();
 
@@ -803,9 +852,7 @@ private:
 
     asmjit::CodeHolder *_codeHolder;
 
-    asmjit::x86::Compiler *_emitter;
-
-    asmjit::Logger *_logger;
+    asmjit::x86::Assembler *_assembler;
 
     asmjit::ErrorHandler *_errorHandler;
 };
@@ -827,13 +874,17 @@ I32 main(I32 argc, Ptr<Ptr<C>> argv) {
         return 1;
     }
 
-    UString code;
+    while (true) {
+        UString code;
 
-    std::cout << "<< ";
+        std::cout << "<< ";
 
-    std::cin >> code;
+        std::cin >> code;
 
-    while (!code.Empty()) {
+        if (code.Empty()) {
+            break;
+        }
+
         auto tokens = Lexer::Create(code).Lex();
 
         auto node = Parser::Create(tokens).Parse();
@@ -849,12 +900,6 @@ I32 main(I32 argc, Ptr<Ptr<C>> argv) {
         auto result = executor->Run(node);
 
         std::cout << ">> " << result << std::endl;
-
-        code = ""_us;
-
-        std::cout << "<< ";
-
-        std::cin >> code;
     }
 
     return 0;

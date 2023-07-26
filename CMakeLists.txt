@@ -18,15 +18,34 @@ if (${MSVC})
     add_compile_options(/utf-8)
 endif()
 
-include(${EXTERNAL_DIR}/conanbuildinfo.cmake)
+set(EXTERNAL_INCLUDE_DIRS )
+set(EXTERNAL_LIBS         )
+
+# AsmJit
+
+find_package(asmjit REQUIRED)
+
+set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${asmjit_INCLUDE_DIRS})
+set(EXTERNAL_LIBS         ${EXTERNAL_LIBS}         ${asmjit_LIBRARIES})
+
+# GSCrossPlatform
+
+find_package(GSCrossPlatform 1.0 REQUIRED)
+
+set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${GSCrossPlatform_INCLUDE_DIRS})
+set(EXTERNAL_LIBS         ${EXTERNAL_LIBS}         ${GSCrossPlatform_LIBRARIES})
+
+# args (taywee-args)
+
+find_package(args REQUIRED)
+
+set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${args_INCLUDE_DIRS})
 
 add_executable(${PROJECT_NAME}
         main.cpp)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${CONAN_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PRIVATE ${EXTERNAL_INCLUDE_DIRS})
 
-target_link_directories(${PROJECT_NAME} PRIVATE ${CONAN_LIB_DIRS})
-
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CONAN_LIBS})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBS})
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${BINARY_DIR})
